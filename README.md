@@ -1,4 +1,5 @@
 Design and Implementation of a Pipelined RISC-V Processor in Verilog
+
 Overview
 
 This project implements a modular 5-stage pipelined RISC-V processor using Verilog HDL. The processor supports arithmetic, logical, memory, and control-flow instructions. It integrates instruction fetch, decode, execute, memory, and write-back stages with pipeline registers and provides debugging support by displaying register values at each clock cycle.
@@ -6,23 +7,17 @@ This project implements a modular 5-stage pipelined RISC-V processor using Veril
 Features
 
 Based on the RISC-V instruction set architecture
-
 5-stage pipeline (IF, ID, EX, MEM, WB)
 
 Modular design with the following units:
 
 IFU: Instruction Fetch Unit
-
 IMU: Instruction Memory Unit
-
 CU: Control Unit
-
 ALU: Arithmetic Logic Unit
-
 RFU: Register File Unit
 
 Support for jump, branch, load, and store instructions
-
 Debugging support through register state display at runtime
 
 File Structure
@@ -59,19 +54,11 @@ Updates the destination register with results from ALU or memory.
 Simulation
 
 The processor is simulated using Verilog testbenches.
-
 Instructions are loaded from flash_data.txt into flash memory.
-
 At every clock cycle, register values are displayed for debugging.
-
 Skills Demonstrated
-
 Verilog HDL
-
 Digital Logic Design
-
 RISC-V ISA
-
 Pipelined Processor Design
-
 Computer Architecture Concepts
