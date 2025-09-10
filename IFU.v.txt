@@ -1,0 +1,65 @@
+module IFU(
+	input clk,
+	input reset,
+	
+	input [31:0]rs1_data,
+	input [31:0]Imm_operand,
+	input branch_control,
+	input jal_control,
+	input jalr_control,
+	output reg [31:0] pc,
+	output reg [31:0] current_pc
+
+);
+
+initial 
+begin
+	pc = 0;
+	current_pc = 0;
+end
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*******************************************************logic for incrementing pc************************************************************************/
+
+always @(posedge clk)
+begin	
+	if(reset == 1)
+	begin 
+		pc <= 0;
+	end
+	else if(jal_control == 1)
+	begin
+		pc <= (pc-12) + $signed({(Imm_operand[20:1]),1'b0});
+	end
+	else if(jalr_control == 1)
+	begin
+		pc <= ((rs1_data + $signed(Imm_operand[11:0]))&(~1));
+	end
+	else if(branch_control == 0 && jal_control == 0 && jalr_control == 0)
+	begin
+		pc <= pc+4;
+	end
+	else if(branch_control == 1)
+	begin
+		pc <= (pc-4)+ $signed(Imm_operand);
+	end
+
+end
+
+always @(posedge clk)
+begin
+	if(reset == 1)
+	begin
+		current_pc <= 0;
+	end
+	else if((jal_control == 0)&&(jalr_control == 0))
+	begin 
+		current_pc <= pc + 4;
+	end
+	else if((jal_control == 1)||(jalr_control == 1))
+	begin
+		current_pc <= current_pc;
+	end
+end
+
+endmodule

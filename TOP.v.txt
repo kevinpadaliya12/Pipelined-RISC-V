@@ -1,0 +1,249 @@
+
+
+module TOP 
+(  
+    input clk,
+    input reset
+);
+
+reg [2047:0] flash_memory;
+reg [31:0] flash_memory_[63:0];
+
+integer i;
+initial begin
+    $readmemh("F:/college/CA_lab/Special Assignment/TOP/flash_data.txt", flash_memory_); 
+    for (i = 0; i < 64; i = i + 1) begin
+        flash_memory[(i * 32) +: 32] = flash_memory_[i];
+    end
+end
+
+// Display Register Values in TOP
+always @(posedge clk) begin
+    $display("----------------------------------------------------");
+    $display("Time: %0t | Reset: %b", $time, reset);
+
+    for (i = 0; i < 32; i = i + 1) begin
+        $display("Reg[%0d] = %h", i, gen_purpose_reg_out[(i * 32) +: 32]);
+    end
+end
+
+//pipeline registers
+reg [31:0]pc_pipeline;
+reg [31:0]instruction_code_pipeline;
+reg [6:0]alu_control_pipeline;
+reg [31:0]gen_purpose_reg_data_write_pipeline;
+reg [31:0] imm_addr_pipeline;
+reg [31:0] rs1_data_pipeline;
+reg [31:0] rs2_data_pipeline;
+reg [31:0] rd_data_pipeline;
+
+
+////////////////////
+
+wire [31:0] instruction_code;
+wire [6:0] opcode = instruction_code_pipeline[6:0];
+wire [2:0] func3 = instruction_code_pipeline[14:12];
+wire [6:0] func7 = instruction_code_pipeline[31:25];
+wire [4:0] rs1_addr = instruction_code_pipeline[19:15];
+wire [4:0] rs2_addr = instruction_code_pipeline[24:20];
+wire [4:0] rd_addr = instruction_code_pipeline[11:7];
+wire [31:0] imm_addr;
+wire [1023:0] gen_purpose_reg_out;
+
+// Other signals
+wire [31:0] pc;
+wire [6:0] alu_control;
+wire [31:0] gen_purpose_reg_data_write;
+wire [31:0] current_pc;
+wire [31:0] rs1_data;
+wire [31:0] rs2_data;
+wire [31:0] rd_data;
+wire [31:0] gen_purpose_reg_data_read;
+wire [31:0] dest_reg_data;
+wire [31:0] return_address;
+wire load_inst, store_inst,jal_control,jalr_control,branch_control,branch_predict;
+
+/**********************************/
+// Instruction Fetch Unit (IFU)
+/*********************************/
+
+IFU U3 (
+    //input
+    .clk(clk),
+    .reset(reset),
+    .rs1_data(rs1_data),  
+    .Imm_operand(imm_addr),
+    .branch_control(branch_control),
+    .jal_control(jal_control),
+    .jalr_control(jalr_control),
+    
+    // Outputs
+    .pc(pc),  
+    .current_pc(current_pc)
+);
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+always @(posedge clk)
+begin
+    if (reset) 
+        pc_pipeline <= -1;
+    else if (branch_control)
+        pc_pipeline <= (pc-12)+ $signed(imm_addr_pipeline);
+    else if (jal_control)
+        pc_pipeline <= (pc-16) + $signed({(imm_addr[20:1]),1'b0});
+    else if (jalr_control)
+	  pc_pipeline <= ((rs1_data + $signed(imm_addr[11:0]))&(~1));
+    else if (branch_predict)
+	  pc_pipeline <= pc_pipeline;
+    else
+        pc_pipeline <= pc;
+end
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**********************************/
+// Instruction Memory Unit (IMU)
+/*********************************/
+
+IMU U4 (
+    //input
+    .clk(clk),
+    .reset(reset),
+    .pc(pc_pipeline),  
+    .flash_memory(flash_memory),
+    //output
+    .instruction_code(instruction_code)
+);
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+always @(posedge clk)
+begin
+    if (reset || jal_control || jalr_control || branch_control || branch_predict) begin
+        instruction_code_pipeline <= 0;
+    end
+    else begin
+        instruction_code_pipeline <= instruction_code;
+    end
+end
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**********************************/
+// Control Unit (CU)
+/*********************************/
+
+CU U2 (
+    //input
+    .reset(reset),
+    .opcode(opcode),  
+    .func3(func3),
+    .func7(func7),
+    .pc(pc_pipeline), 
+    .instruction_code(instruction_code_pipeline),
+    
+    //Output
+    .alu_control(alu_control), 
+    .load_inst(load_inst),  
+    .store_inst(store_inst),  
+    .jal_control(jal_control),  
+    .jalr_control(jalr_control),  
+    .branch_predict(branch_predict),
+    .return_address(return_address),
+    .imm_addr(imm_addr)
+);
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+always @(posedge clk)
+begin
+	if(reset)
+	begin
+		alu_control_pipeline <= 0;
+		imm_addr_pipeline <= 0;		
+	end
+	else
+	begin
+		alu_control_pipeline <= alu_control;
+		imm_addr_pipeline <= imm_addr;
+	end
+end
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**********************************/
+// Execution Unit (ALU)
+/*********************************/
+
+ALU U1 (
+     //input
+    .rs1(rs1_data_pipeline),  
+    .rs2(rs2_data_pipeline),  
+    .Imm_operand(imm_addr_pipeline),  
+    .alu_control(alu_control_pipeline),  
+    .gen_purpose_reg_data_read(gen_purpose_reg_data_read),  
+    .pc(pc), 
+
+    //Output
+    .gen_purpose_reg_data_write(gen_purpose_reg_data_write),  
+    .dest_reg_data(dest_reg_data),  
+    .branch_control(branch_control)  
+);
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+always @(posedge clk)
+begin
+	if(reset || jal_control || jalr_control || branch_control || branch_predict)
+	begin
+		gen_purpose_reg_data_write_pipeline <= 0;
+	end
+	else
+	begin
+		gen_purpose_reg_data_write_pipeline <= gen_purpose_reg_data_write;
+	end
+end
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**********************************/
+// Register File Unit (RFU)
+/*********************************/
+
+RFU U5 (
+     //input
+    .clk(clk),
+    .reset(reset),
+    .src_reg_1(rs1_addr),  
+    .src_reg_2(rs2_addr),  
+    .dest_reg(rd_addr),  
+    .Imm_operand(imm_addr_pipeline),  
+    .load_inst(load_inst),  
+    .store_inst(store_inst),  
+    .gen_purpose_reg_data_write(gen_purpose_reg_data_write_pipeline),  
+    .dest_reg_data(dest_reg_data),  
+    .return_address(return_address),  
+    .pc(pc),  
+
+    //Output
+    .gen_purpose_reg_data_read(gen_purpose_reg_data_read),  
+    .rs1(rs1_data),  
+    .rs2(rs2_data),  
+    .rd(rd_data),  
+    .gen_purpose_reg_out(gen_purpose_reg_out)
+);
+
+always @(posedge clk)
+begin
+	if(reset)
+	begin
+		rs1_data_pipeline <= 0;
+		rs2_data_pipeline <= 0;
+		rd_data_pipeline <= 0;
+		
+
+	end
+	else
+		rs1_data_pipeline <= rs1_data;
+		rs2_data_pipeline <= rs2_data;
+		rd_data_pipeline <= rd_data;
+		
+
+end
+
+endmodule
+
+

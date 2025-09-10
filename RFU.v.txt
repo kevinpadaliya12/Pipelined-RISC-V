@@ -1,0 +1,96 @@
+module RFU(
+	input clk,
+	input reset,
+	input [4:0]src_reg_1,//same as dest_reg
+	input [4:0]src_reg_2,//same as dest reg
+	input [4:0]dest_reg,//this must be provided by testbench to IFU->IMU(instruction_code)->RFU
+	input [31:0]Imm_operand,//I type instruction (this is used here as address to direct memory address)
+	
+	input load_inst,
+	input store_inst,
+	
+	input [31:0]gen_purpose_reg_data_write,//this shoule be provided by ALU in top module
+	input [31:0]dest_reg_data,//provided by ALU after calculations
+	input [31:0]return_address,
+	input [31:0] pc,
+	
+	output reg[31:0]gen_purpose_reg_data_read,//this should be provided to ALU in top module	
+	output reg[31:0]rs1,
+	output reg[31:0]rs2,
+	output reg[31:0]rd,
+	output reg [1023:0] gen_purpose_reg_out  // Exposing register file to TOP module
+); 
+
+reg [31:0] previous_gen_purpose_reg_data_read;
+reg [31:0] gen_purpose_reg [31:0];
+reg [31:0] pc_reg;
+
+reg[4:0] prev_src_reg_1;
+reg[4:0] prev_src_reg_2;
+reg[4:0] prev_dest_reg;
+
+integer i;
+
+initial 
+begin
+	previous_gen_purpose_reg_data_read = 0;
+	gen_purpose_reg_data_read = 0;
+	rs1 = 0;
+	rs2 = 0;
+	rd = 0;
+	prev_src_reg_1 = 0;
+	prev_src_reg_2 = 0;
+	prev_dest_reg = 0;
+	
+end
+
+always@(*)
+begin
+	if(reset)
+	begin
+		pc_reg  = pc;
+		gen_purpose_reg[0] = 0;
+		previous_gen_purpose_reg_data_read = 0;
+		prev_src_reg_1 = 0;
+		prev_src_reg_2 = 0;
+		prev_dest_reg = 0;
+		for(i=1;i<32;i=i+1)
+			gen_purpose_reg[i] = i+2;
+	end
+	
+	else
+	begin
+		
+		pc_reg  = pc;
+		gen_purpose_reg[0] = 0;
+		
+		rs1 = gen_purpose_reg[src_reg_1];
+		rs2 = gen_purpose_reg[src_reg_2];
+		
+		if((load_inst==0) && (store_inst==0))
+		begin
+			gen_purpose_reg[prev_dest_reg] = dest_reg_data; 
+			rd = gen_purpose_reg[prev_dest_reg];
+		end
+		
+		gen_purpose_reg_data_read <= previous_gen_purpose_reg_data_read;
+		
+		if(store_inst)
+		begin
+			gen_purpose_reg[gen_purpose_reg[src_reg_1] + $signed(Imm_operand[11:0])] = gen_purpose_reg_data_write;
+			gen_purpose_reg_data_read <= previous_gen_purpose_reg_data_read;
+		end
+		else if(load_inst)
+		begin
+			gen_purpose_reg_data_read <= gen_purpose_reg[gen_purpose_reg[src_reg_1] + $signed(Imm_operand[11:0])];
+			previous_gen_purpose_reg_data_read = gen_purpose_reg_data_read;
+		end
+		prev_src_reg_1 <= src_reg_1;
+		prev_src_reg_2 <= src_reg_2;
+		prev_dest_reg <= dest_reg;
+	end
+
+	for (i = 0; i < 32; i = i + 1)
+         gen_purpose_reg_out[(i * 32) +: 32] = gen_purpose_reg[i];
+end
+endmodule

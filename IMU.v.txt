@@ -1,0 +1,278 @@
+	module IMU(
+	input clk,
+	input reset,
+	input [31:0]pc,//it will be provided by IFU by incrementing it after fetching of machine code one by one
+	input [2047:0] flash_memory,
+	output reg [31:0]instruction_code
+);
+//reg [7:0] memory [159:0];
+
+reg [31:0] memory[63:0];
+
+integer i;
+initial begin
+	#2
+    for (i = 0; i < 64; i = i + 1) begin
+        memory[i] = flash_memory[(i * 32) +: 32]; // Extract 32-bit chunks
+	  $display("memory[%0d] = %h", i, memory[i]);
+    end
+    	instruction_code = 0;
+	
+end
+
+reg [4:0]rs1 = 15;
+reg [4:0]rs2 = 20;
+reg [4:0]rd = 10;
+reg [31:0]Imm_operand = 20;
+
+reg [6:0]opcode_ri = 7'b0010011;
+reg [6:0]opcode_rr = 7'b0110011;
+reg [6:0]opcode_cb = 7'b1100011;
+reg [6:0]opcode_li = 7'b0000011;
+reg [6:0]opcode_ss = 7'b0100011;
+reg [6:0]opcode_ru1 = 7'b0110111;
+reg [6:0]opcode_ru2 = 7'b0010111;
+reg [6:0]opcode_uj = 7'b1101111;
+reg [6:0]opcode_ui = 7'b1100111;
+
+always @(*)
+begin
+	
+	if(reset == 1)
+	begin
+		instruction_code = 0;
+	end
+	
+	else
+	begin
+
+	
+/*integer*/
+
+	/**register-immmediate**/
+	
+	//addi
+/*	memory[3] = {Imm_operand[11:4]};
+	memory[2] = {Imm_operand[3:0],rs1[4:1]};
+	memory[1] = {rs1[0],3'b000,rd[4:1]};
+	memory[0] = {rd[0],opcode_ri};
+	//slti
+	memory[7] = {Imm_operand[11:4]};
+	memory[6] = {Imm_operand[3:0],rs1[4:1]};
+	memory[5] = {rs1[0],3'b010,rd[4:1]};
+	memory[4] = {rd[0],opcode_ri};
+	//sltiu
+	memory[11] = {Imm_operand[11:4]};
+	memory[10] = {Imm_operand[3:0],rs1[4:1]};
+	memory[9] = {rs1[0],3'b011,rd[4:1]};
+	memory[8] = {rd[0],opcode_ri};
+	//andi
+	memory[15] = {Imm_operand[11:4]};
+	memory[14] = {Imm_operand[3:0],rs1[4:1]};
+	memory[13] = {rs1[0],3'b111,rd[4:1]};
+	memory[12] = {rd[0],opcode_ri};
+	//ori
+	memory[19] = {Imm_operand[11:4]};
+	memory[18] = {Imm_operand[3:0],rs1[4:1]};
+	memory[17] = {rs1[0],3'b110,rd[4:1]};
+	memory[16] = {rd[0],opcode_ri};
+	//xori
+	memory[23] = {Imm_operand[11:4]};
+	memory[22] = {Imm_operand[3:0],rs1[4:1]};
+	memory[21] = {rs1[0],3'b100,rd[4:1]};
+	memory[20] = {rd[0],opcode_ri};
+	//slli
+	memory[27] = {7'b0000000,Imm_operand[4]};
+	memory[26] = {Imm_operand[3:0],rs1[4:1]};
+	memory[25] = {rs1[0],3'b001,rd[4:1]};
+	memory[24] = {rd[0],opcode_ri};
+	//srli
+	memory[31] = {7'b0000000,Imm_operand[4]};
+	memory[30] = {Imm_operand[3:0],rs1[4:1]};
+	memory[29] = {rs1[0],3'b101,rd[4:1]};
+	memory[28] = {rd[0],opcode_ri};
+	//srai
+	memory[35] = {7'b0100000,Imm_operand[4]};
+	memory[34] = {Imm_operand[3:0],rs1[4:1]};
+	memory[33] = {rs1[0],3'b101,rd[4:1]};
+	memory[32] = {rd[0],opcode_ri};
+	
+	//lui
+	memory[39] = {Imm_operand[19:12]};
+	memory[38] = {Imm_operand[11:4]};
+	memory[37] = {Imm_operand[3:0],rd[4:1]};
+	memory[36] = {rd[0],opcode_ru1};
+	//auipc
+	memory[43] = {Imm_operand[19:12]};
+	memory[42] = {Imm_operand[11:4]};
+	memory[41] = {Imm_operand[3:0],rd[4:1]};
+	memory[40] = {rd[0],opcode_ru2};
+	
+	/**register-register**/
+	
+	//add
+/*	memory[47] = {7'b0000000,rs2[4]};
+	memory[46] = {rs2[3:0],rs1[4:1]};
+	memory[45] = {rs1[0],3'b000,rd[4:1]};
+	memory[44] = {rd[0],opcode_rr};
+	//slt
+	memory[51] = {7'b0000000,rs2[4]};
+	memory[50] = {rs2[3:0],rs1[4:1]};
+	memory[49] = {rs1[0],3'b010,rd[4:1]};
+	memory[48] = {rd[0],opcode_rr};
+	//sltu
+	memory[55] = {7'b0000000,rs2[4]};
+	memory[54] = {rs2[3:0],rs1[4:1]};
+	memory[53] = {rs1[0],3'b011,rd[4:1]};
+	memory[52] = {rd[0],opcode_rr};
+	//and
+	memory[59] = {7'b0000000,rs2[4]};
+	memory[58] = {rs2[3:0],rs1[4:1]};
+	memory[57] = {rs1[0],3'b111,rd[4:1]};
+	memory[56] = {rd[0],opcode_rr};
+	//or
+	memory[63] = {7'b0000000,rs2[4]};
+	memory[62] = {rs2[3:0],rs1[4:1]};
+	memory[61] = {rs1[0],3'b110,rd[4:1]};
+	memory[60] = {rd[0],opcode_rr};
+	//xor
+	memory[67] = {7'b0000000,rs2[4]};
+	memory[66] = {rs2[3:0],rs1[4:1]};
+	memory[65] = {rs1[0],3'b100,rd[4:1]};
+	memory[64] = {rd[0],opcode_rr};
+	//sll
+	memory[71] = {7'b0000000,rs2[4]};
+	memory[70] = {rs2[3:0],rs1[4:1]};
+	memory[69] = {rs1[0],3'b001,rd[4:1]};
+	memory[68] = {rd[0],opcode_rr};
+	//srl
+	memory[75] = {7'b0000000,rs2[4]};
+	memory[74] = {rs2[3:0],rs1[4:1]};
+	memory[73] = {rs1[0],3'b101,rd[4:1]};
+	memory[72] = {rd[0],opcode_rr};
+	//sub
+	memory[79] = {7'b1000000,rs2[4]};
+	memory[78] = {rs2[3:0],rs1[4:1]};
+	memory[77] = {rs1[0],3'b000,rd[4:1]};
+	memory[76] = {rd[0],opcode_rr};
+	//sra
+	memory[83] = {7'b1000000,rs2[4]};
+	memory[82] = {rs2[3:0],rs1[4:1]};
+	memory[81] = {rs1[0],3'b101,rd[4:1]};
+	memory[80] = {rd[0],opcode_rr};
+	
+/*control transfer*/
+
+	/**unconditional jumps**/
+	
+	//jal
+/*	memory[87] = {Imm_operand[20],Imm_operand[10:4]};
+	memory[86] = {Imm_operand[3:1],Imm_operand[11],Imm_operand[19:16]};
+	memory[85] = {Imm_operand[15:12],rd[4:1]};
+	memory[84] = {rd[0],opcode_uj};	
+	//jalr
+	memory[91] = {Imm_operand[11:4]};
+	memory[90] = {Imm_operand[3:0],rs1[4:1]};
+	memory[89] = {rs1[0],3'b000,rd[4:1]};
+	memory[88] = {rd[0],opcode_ui};
+	
+	/**conditional branches**/
+	
+	//beq
+/*	memory[95] = {Imm_operand[12],Imm_operand[10:5],rs2[4]};
+	memory[94] = {rs2[3:0],rs1[4:1]};
+	memory[93] = {rs1[0],3'b000,Imm_operand[4:1]};
+	memory[92] = {Imm_operand[11],opcode_cb};
+	//bne
+	memory[99] = {Imm_operand[12],Imm_operand[10:5],rs2[4]};
+	memory[98] = {rs2[3:0],rs1[4:1]};
+	memory[97] = {rs1[0],3'b001,Imm_operand[4:1]};
+	memory[96] = {Imm_operand[11],opcode_cb};
+	//blt
+	memory[103] = {Imm_operand[12],Imm_operand[10:5],rs2[4]};
+	memory[102] = {rs2[3:0],rs1[4:1]};
+	memory[101] = {rs1[0],3'b100,Imm_operand[4:1]};
+	memory[100] = {Imm_operand[11],opcode_cb};
+	//bltu
+	memory[107] = {Imm_operand[12],Imm_operand[10:5],rs2[4]};
+	memory[106] = {rs2[3:0],rs1[4:1]};
+	memory[105] = {rs1[0],3'b110,Imm_operand[4:1]};
+	memory[104] = {Imm_operand[11],opcode_cb};
+	//bge
+	memory[111] = {Imm_operand[12],Imm_operand[10:5],rs2[4]};
+	memory[110] = {rs2[3:0],rs1[4:1]};
+	memory[109] = {rs1[0],3'b101,Imm_operand[4:1]};
+	memory[108] = {Imm_operand[11],opcode_cb};
+	//bgeu
+	memory[115] = {Imm_operand[12],Imm_operand[10:5],rs2[4]};
+	memory[114] = {rs2[3:0],rs1[4:1]};
+	memory[113] = {rs1[0],3'b111,Imm_operand[4:1]};
+	memory[112] = {Imm_operand[11],opcode_cb};
+	
+/*load store*/
+	
+	//lw
+/*	memory[119] = {Imm_operand[11:4]};
+	memory[118] = {Imm_operand[3:0],rs1[4:1]};
+	memory[117] = {rs1[0],3'b010,rd[4:1]};
+	memory[116] = {rd[0],opcode_li};
+	//lh
+	memory[123] = {Imm_operand[11:4]};
+	memory[122] = {Imm_operand[3:0],rs1[4:1]};
+	memory[121] = {rs1[0],3'b001,rd[4:1]};
+	memory[120] = {rd[0],opcode_li};
+	//lhu
+	memory[127] = {Imm_operand[11:4]};
+	memory[126] = {Imm_operand[3:0],rs1[4:1]};
+	memory[125] = {rs1[0],3'b101,rd[4:1]};
+	memory[124] = {rd[0],opcode_li};
+	//lb
+	memory[131] = {Imm_operand[11:4]};
+	memory[130] = {Imm_operand[3:0],rs1[4:1]};
+	memory[129] = {rs1[0],3'b000,rd[4:1]};
+	memory[128] = {rd[0],opcode_li};
+	//lbu
+	memory[135] = {Imm_operand[11:4]};
+	memory[134] = {Imm_operand[3:0],rs1[4:1]};
+	memory[133] = {rs1[0],3'b100,rd[4:1]};
+	memory[132] = {rd[0],opcode_li};
+	
+	
+	//sw
+	memory[139] = {Imm_operand[11:5],rs2[4]};
+	memory[138] = {rs2[3:0],rs1[4:1]};
+	memory[137] = {rs1[0],3'b010,Imm_operand[4:1]};
+	memory[136] = {Imm_operand[0],opcode_ss};
+	//sh
+	memory[143] = {Imm_operand[11:5],rs2[4]};
+	memory[142] = {rs2[3:0],rs1[4:1]};
+	memory[141] = {rs1[0],3'b001,Imm_operand[4:1]};
+	memory[140] = {Imm_operand[0],opcode_ss};
+	//sb
+	memory[147] = {Imm_operand[11:5],rs2[4]};
+	memory[146] = {rs2[3:0],rs1[4:1]};
+	memory[145] = {rs1[0],3'b000,Imm_operand[4:1]};
+	memory[144] = {Imm_operand[0],opcode_ss};
+	
+/*memory*/
+
+	//syscall
+
+	
+/*environment call and breakpoints*/	
+
+	//ecall
+
+	//ebreak
+	
+	//instruction_code = {memory[(pc)+3],memory[(pc)+2],memory[(pc)+1],memory[(pc)]};
+	
+	instruction_code = memory[pc>>2];
+	
+	if(pc > 2147483648)//to remove initial error making i_code = 0 when pc = -1
+		instruction_code = 0;
+	
+	end
+end
+
+endmodule
